@@ -26,7 +26,7 @@ Trained on [140k Real and Fake Faces](https://www.kaggle.com/datasets/xhlulu/140
 ## Setup
 
 ### 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/deepfake-detective.git
+git clone https://github.com/aryashekhar564-ai/deepfake-detective.git
 cd deepfake-detective
 
 ### 2. Install dependencies
