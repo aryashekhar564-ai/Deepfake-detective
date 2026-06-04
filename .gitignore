@@ -1,0 +1,8 @@
+models/*.keras 
+models/*.h5 
+__pycache__/ 
+*.pyc 
+venv/ 
+.DS_Store 
+Thumbs.db 
+.ipynb_checkpoints/ 

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepFake Detective</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a28;
+    --border: #2a2a40;
+    --accent: #7c6aff;
+    --accent2: #ff6a9c;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    animation: fadeDown 0.6s ease;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0.75rem;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+  }
+
+  .disclaimer {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-align: left;
+    max-width: 700px;
+  }
+
+  .disclaimer-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    opacity: 0.6;
+    margin-top: 3px;
+    margin-left: 3px;
+  }
+
+  /* Upload Zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface);
+    margin: 2rem 0;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.6s ease 0.2s both;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(124, 106, 255, 0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  .upload-zone:hover::before, .upload-zone.drag-over::before {
+    opacity: 1;
+  }
+
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.5rem;
+    background: var(--surface2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+
+  .upload-icon svg {
+    width: 28px;
+    height: 28px;
+    color: var(--accent);
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .upload-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  .upload-hint {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  #fileInput { display: none; }
+
+  .analyze-btn {
+    display: none;
+    margin: 0 auto;
+    padding: 0.875rem 2.5rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+  }
+
+  .analyze-btn:hover {
+    background: #9580ff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(124, 106, 255, 0.3);
+  }
+
+  .analyze-btn:active { transform: translateY(0); }
+
+  /* Preview */
+  #preview-container {
+    display: none;
+    text-align: center;
+    margin: 1.5rem 0;
+  }
+
+  #preview-img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    object-fit: cover;
+  }
+
+  /* Loading */
+  #loading {
+    display: none;
+    text-align: center;
+    padding: 3rem;
+  }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1.5rem;
+  }
+
+  .loading-text {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* Results */
+  #results { display: none; animation: fadeUp 0.5s ease; }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Final Verdict Card ─────────────────────────────────── */
+  .verdict-card {
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    margin-bottom: 2.5rem;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .verdict-card.real {
+    background: rgba(74, 222, 128, 0.05);
+    border-color: var(--green);
+    box-shadow: 0 0 48px rgba(74, 222, 128, 0.1);
+  }
+
+  .verdict-card.fake {
+    background: rgba(248, 113, 113, 0.05);
+    border-color: var(--red);
+    box-shadow: 0 0 48px rgba(248, 113, 113, 0.1);
+  }
+
+  .verdict-card.uncertain {
+    background: rgba(251, 191, 36, 0.05);
+    border-color: var(--yellow);
+    box-shadow: 0 0 48px rgba(251, 191, 36, 0.1);
+  }
+
+  .verdict-main {
+    font-family: var(--mono);
+    font-size: clamp(3rem, 10vw, 6rem);
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .verdict-card.real     .verdict-main { color: var(--green); }
+  .verdict-card.fake     .verdict-main { color: var(--red); }
+  .verdict-card.uncertain .verdict-main { color: var(--yellow); }
+
+  .verdict-confidence {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .verdict-message {
+    font-size: 0.85rem;
+    color: var(--muted);
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Overview row */
+  .overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .overview-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+
+  .overview-card .label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  .overview-card img {
+    width: 100%;
+    max-width: 200px;
+    border-radius: 8px;
+  }
+
+  /* Model cards */
+  .models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .model-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .model-card:hover { border-color: var(--accent); }
+
+  .model-card.real { border-left: 3px solid var(--green); }
+  .model-card.fake { border-left: 3px solid var(--red); }
+
+  .model-header {
+    padding: 1rem 1.25rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .model-name {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .model-tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .model-body { padding: 1rem 1.25rem; }
+
+  .model-body img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .verdict {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .verdict-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .verdict-label.real { color: var(--green); }
+  .verdict-label.fake { color: var(--red); }
+
+  .confidence-pct {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .confidence-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .confidence-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  .confidence-fill.real { background: var(--green); }
+  .confidence-fill.fake { background: var(--red); }
+
+  /* Summary table */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+
+  .summary-table th {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 1rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .summary-table td {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .badge.real { background: rgba(74, 222, 128, 0.1); color: var(--green); }
+  .badge.fake { background: rgba(248, 113, 113, 0.1); color: var(--red); }
+
+  .score-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .score-mini-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-mini-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .score-mini-fill.real { background: var(--green); }
+  .score-mini-fill.fake { background: var(--red); }
+
+  .score-num {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* Reset button */
+  .reset-btn {
+    display: block;
+    margin: 0 auto 3rem;
+    padding: 0.75rem 2rem;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+  }
+
+  .reset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Error */
+  .error-msg {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    color: var(--red);
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    margin: 1rem 0;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">// deepfake detection system</div>
+    <h1>DeepFake Detective</h1>
+    <p class="subtitle">CNN-based facial authenticity analysis · LeNet · AlexNet · VGG16 · ResNet50</p>
+    <div style="display:flex; justify-content:center; margin-top:1.25rem;">
+      <div class="disclaimer">
+        <div class="disclaimer-dot"></div>
+        Trained exclusively on StyleGAN deepfakes — results are unreliable for diffusion-generated faces (DALL-E, Midjourney, Stable Diffusion), face-swap deepfakes, and other manipulation methods not represented in the training set
+      </div>
+    </div>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <div class="upload-text">Drop a face image here</div>
+    <div class="upload-hint">or click to browse · JPG, PNG, WEBP</div>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div id="preview-container">
+    <img id="preview-img" alt="Preview">
+  </div>
+
+  <div style="text-align:center; margin-bottom: 2rem;">
+    <button class="analyze-btn" id="analyzeBtn">Analyze Image</button>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Running inference across all models...</div>
+  </div>
+
+  <div id="results">
+
+    <!-- Final verdict sits at the top -->
+    <div class="section-title">Final Verdict</div>
+    <div id="verdictCard"></div>
+
+    <div class="section-title">Input Analysis</div>
+    <div class="overview" id="overviewCards"></div>
+
+    <div class="section-title">GradCAM · Model Predictions</div>
+    <div class="models-grid" id="modelsGrid"></div>
+
+    <div class="section-title">Comparison Summary</div>
+    <table class="summary-table" id="summaryTable">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Verdict</th>
+          <th>Confidence</th>
+          <th>Raw Score</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody"></tbody>
+    </table>
+
+    <button class="reset-btn" id="resetBtn">↺ Analyze Another Image</button>
+  </div>
+</div>
+
+<script>
+const uploadZone  = document.getElementById('uploadZone');
+const fileInput   = document.getElementById('fileInput');
+const analyzeBtn  = document.getElementById('analyzeBtn');
+const previewCont = document.getElementById('preview-container');
+const previewImg  = document.getElementById('preview-img');
+const loading     = document.getElementById('loading');
+const results     = document.getElementById('results');
+const errorMsg    = document.getElementById('errorMsg');
+const resetBtn    = document.getElementById('resetBtn');
+
+let selectedFile = null;
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    previewImg.src = e.target.result;
+    previewCont.style.display = 'block';
+    analyzeBtn.style.display = 'inline-block';
+    errorMsg.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  uploadZone.style.display = 'none';
+  previewCont.style.display = 'none';
+  analyzeBtn.style.display = 'none';
+  loading.style.display = 'block';
+  results.style.display = 'none';
+  errorMsg.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('image', selectedFile);
+
+  try {
+    const res  = await fetch('/analyze', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    renderResults(data);
+    loading.style.display = 'none';
+    results.style.display = 'block';
+  } catch (err) {
+    loading.style.display = 'none';
+    uploadZone.style.display = 'block';
+    previewCont.style.display = 'block';
+    analyzeBtn.style.display = 'inline-block';
+    errorMsg.textContent = 'Error: ' + err.message;
+    errorMsg.style.display = 'block';
+  }
+});
+
+function renderResults(data) {
+  // ── Final verdict ──────────────────────────────────────────
+  const v = data.verdict;
+  document.getElementById('verdictCard').innerHTML = `
+    <div class="verdict-card ${v.color}">
+      <div class="verdict-main">${v.label}</div>
+      ${v.confidence > 0
+        ? `<div class="verdict-confidence">${v.confidence}% confidence</div>`
+        : ''}
+      <div class="verdict-message">${v.message}</div>
+    </div>
+  `;
+
+  // ── Overview ───────────────────────────────────────────────
+  document.getElementById('overviewCards').innerHTML = `
+    <div class="overview-card">
+      <div class="label">Original Image</div>
+      <img src="data:image/png;base64,${data.original}" alt="Original">
+    </div>
+    <div class="overview-card">
+      <div class="label">FFT Frequency Spectrum</div>
+      <img src="data:image/png;base64,${data.fft}" alt="FFT">
+    </div>
+  `;
+
+  // ── Model cards ────────────────────────────────────────────
+  const modelsGrid = document.getElementById('modelsGrid');
+  modelsGrid.innerHTML = '';
+  data.results.forEach(r => {
+    const cls  = r.prediction.toLowerCase();
+    const card = document.createElement('div');
+    card.className = `model-card ${cls}`;
+    card.innerHTML = `
+      <div class="model-header">
+        <span class="model-name">${r.model}</span>
+        ${r.coarse ? '<span class="model-tag">64×64</span>' : '<span class="model-tag">224×224</span>'}
+      </div>
+      <div class="model-body">
+        <img src="data:image/png;base64,${r.gradcam}" alt="GradCAM ${r.model}">
+        <div class="verdict">
+          <span class="verdict-label ${cls}">${r.prediction}</span>
+          <span class="confidence-pct">${r.confidence}% confident</span>
+        </div>
+        <div class="confidence-bar">
+          <div class="confidence-fill ${cls}" style="width: ${r.confidence}%"></div>
+        </div>
+      </div>
+    `;
+    modelsGrid.appendChild(card);
+  });
+
+  // ── Summary table ──────────────────────────────────────────
+  const summaryBody = document.getElementById('summaryBody');
+  summaryBody.innerHTML = '';
+  data.results.forEach(r => {
+    const cls = r.prediction.toLowerCase();
+    const tr  = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-family: var(--mono); font-weight: 700;">${r.model}</td>
+      <td><span class="badge ${cls}">${r.prediction}</span></td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-mini-bar">
+            <div class="score-mini-fill ${cls}" style="width: ${r.confidence}%"></div>
+          </div>
+          <span class="score-num">${r.confidence}%</span>
+        </div>
+      </td>
+      <td style="font-family: var(--mono); color: var(--muted); font-size: 0.8rem;">${r.score.toFixed(4)}</td>
+    `;
+    summaryBody.appendChild(tr);
+  });
+}
+
+resetBtn.addEventListener('click', () => {
+  selectedFile = null;
+  fileInput.value = '';
+  previewCont.style.display = 'none';
+  analyzeBtn.style.display = 'none';
+  results.style.display = 'none';
+  document.getElementById('verdictCard').innerHTML = '';
+  uploadZone.style.display = 'block';
+  errorMsg.style.display = 'none';
+});
+</script>
+</body>
+</html>
